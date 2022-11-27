@@ -1,0 +1,2003 @@
+---
+title: "FinalPAC"
+output:
+  pdf_document: default
+  html_document: default
+date: "2022-11-13"
+---
+#import data
+```{r}
+songs = read.csv('analysisData.csv')
+```
+The first step of this project is importing the data we need. 
+
+#library needed
+```{r}
+library(caTools)
+library(datasets)
+library(caret)
+library(dplyr)
+library(ipred)
+library(rsample)
+library(glmnet)
+library(tidyverse)
+library(splitstackshape)
+library(stringr)
+library(tibble)
+library(ranger)
+```
+This step loaded all the libraries I tried to use in the below steps. 
+
+#clean data
+#find NA & empty
+```{r}
+songs[is.na(songs)] <- 0
+songs[songs == '[]'] <- 0
+#songs
+```
+The first step of cleaning data is finding all the empty variables and NA from the raw data. In further steps of building the model, I would like to split the genre to Boolean variables. In this step, I changed all the empty variables and NA to 0. 
+
+#split genre
+```{r}
+songs <-songs%>%
+  add_column(adultstandards=
+               ifelse(str_detect(.$genre, "'adult standards'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(brillbuildingpop=
+               ifelse(str_detect(.$genre, "'brill building pop'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(easylistening=
+               ifelse(str_detect(.$genre, "'easy listening'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(mellowgold=
+               ifelse(str_detect(.$genre, "'mellow gold'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(rockandroll=
+               ifelse(str_detect(.$genre, "'rock-and-roll'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(spaceagepop=
+               ifelse(str_detect(.$genre, "'space age pop'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(surfmusic=
+               ifelse(str_detect(.$genre, "'surf music'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(dancepop=
+               ifelse(str_detect(.$genre, "'dance pop'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(pop=
+               ifelse(str_detect(.$genre, "'pop'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(postteenpop=
+               ifelse(str_detect(.$genre, "'post-teen pop'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(country=
+               ifelse(str_detect(.$genre, "'country'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(countrydawn=
+               ifelse(str_detect(.$genre, "'country dawn'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(nashvillesound=
+               ifelse(str_detect(.$genre, "'nashville sound'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(australiancountry=
+               ifelse(str_detect(.$genre, "'australian country'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(australianpop=
+               ifelse(str_detect(.$genre, "'australian pop'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(australianrock=
+               ifelse(str_detect(.$genre, "'australian rock'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(australiandance=
+               ifelse(str_detect(.$genre, "'australian dance'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(contemporarycountry=
+               ifelse(str_detect(.$genre, "'contemporary country'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(countryroad=
+               ifelse(str_detect(.$genre, "'country road'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(funk=
+               ifelse(str_detect(.$genre, "'funk'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(neosoul=
+               ifelse(str_detect(.$genre, "'neo soul'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(newjackswing=
+               ifelse(str_detect(.$genre, "'new jack swing'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(quietstorm=
+               ifelse(str_detect(.$genre, "'quiet storm'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(rb=
+               ifelse(str_detect(.$genre, "'r&b'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(urbancontemporary=
+               ifelse(str_detect(.$genre, "'urban contemporary'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(bluesrock=
+               ifelse(str_detect(.$genre, "'blues rock'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(garagerock=
+               ifelse(str_detect(.$genre, "'garage rock'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(modernblues=
+               ifelse(str_detect(.$genre, "'modern blues'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(punkblues=
+               ifelse(str_detect(.$genre, "'punk blues'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(folk=
+               ifelse(str_detect(.$genre, "'folk'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(folkrock=
+               ifelse(str_detect(.$genre, "'folk rock'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(singersongwriter=
+               ifelse(str_detect(.$genre, "'singer-songwriter'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(softrock=
+               ifelse(str_detect(.$genre, "'soft rock'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(yachtrock=
+               ifelse(str_detect(.$genre, "'yacht rock'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(bubblegumpop=
+               ifelse(str_detect(.$genre, "'bubblegum pop'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(lounge=
+               ifelse(str_detect(.$genre, "'lounge'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(rockabilly=
+               ifelse(str_detect(.$genre, "'rockabilly'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(sunshinepop=
+               ifelse(str_detect(.$genre, "'sunshine pop'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(canadianpop=
+               ifelse(str_detect(.$genre, "'canadian pop'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(newromantic=
+               ifelse(str_detect(.$genre, "'new romantic'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(newwave=
+               ifelse(str_detect(.$genre, "'new wave'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(newwavepop=
+               ifelse(str_detect(.$genre, "'new wave pop'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(synthpop=
+               ifelse(str_detect(.$genre, "'synthpop'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(classicsoul=
+               ifelse(str_detect(.$genre, "'classic soul'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(classiccountrypop=
+               ifelse(str_detect(.$genre, "'classic country pop'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(outlawcountry=
+               ifelse(str_detect(.$genre, "'outlaw country'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(texascountry=
+               ifelse(str_detect(.$genre, "'texas country'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(disco=
+               ifelse(str_detect(.$genre, "'disco'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(postdisco=
+               ifelse(str_detect(.$genre, "'post-disco'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(motown=
+               ifelse(str_detect(.$genre, "'motown'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(southernsoul=
+               ifelse(str_detect(.$genre, "'southern soul'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(doowop=
+               ifelse(str_detect(.$genre, "'doo-wop'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(rhythmandblues=
+               ifelse(str_detect(.$genre, "'rhythm and blues'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(albumrock=
+               ifelse(str_detect(.$genre, "'album rock'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(artrock=
+               ifelse(str_detect(.$genre, "'art rock'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(electricblues=
+               ifelse(str_detect(.$genre, "'electric blues'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(classicrock=
+               ifelse(str_detect(.$genre, "'classic rock'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(jazzblues=
+               ifelse(str_detect(.$genre, "'jazz blues'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(louisianablues=
+               ifelse(str_detect(.$genre, "'louisiana blues'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(neworleansblues=
+               ifelse(str_detect(.$genre, "'new orleans blues'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(pianoblues=
+               ifelse(str_detect(.$genre, "'piano blues'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(psychedelicrock=
+               ifelse(str_detect(.$genre, "'psychedelic rock'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(rootsrock=
+               ifelse(str_detect(.$genre, "'roots rock'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(canadiansingersongwriter=
+               ifelse(str_detect(.$genre, "'canadian singer-songwriter'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(classiccanadianrock=
+               ifelse(str_detect(.$genre, "'classic canadian rock'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(heartlandrock=
+               ifelse(str_detect(.$genre, "'heartland rock'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(permanentwave=
+               ifelse(str_detect(.$genre, "'permanent wave'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(hardrock=
+               ifelse(str_detect(.$genre, "'hard rock'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(southernrock=
+               ifelse(str_detect(.$genre, "'southern rock'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(christmasinstrumental=
+               ifelse(str_detect(.$genre, "'christmas instrumental'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(phillysoul=
+               ifelse(str_detect(.$genre, "'philly soul'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(britishinvasion=
+               ifelse(str_detect(.$genre, "'british invasion'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(protopunk=
+               ifelse(str_detect(.$genre, "'protopunk'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(alternativemetal=
+               ifelse(str_detect(.$genre, "'alternative metal'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(classicukpop=
+               ifelse(str_detect(.$genre, "'classic uk pop'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(merseybeat=
+               ifelse(str_detect(.$genre, "'merseybeat'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(memphissoul=
+               ifelse(str_detect(.$genre, "'memphis soul'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(deepadultstandards=
+               ifelse(str_detect(.$genre, "'deep adult standards'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(modernrock=
+               ifelse(str_detect(.$genre, "'modern rock'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(alternativerock=
+               ifelse(str_detect(.$genre, "'alternative rock'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(postgrunge=
+               ifelse(str_detect(.$genre, "'post-grunge'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(grunge=
+               ifelse(str_detect(.$genre, "'grunge'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(hollywood=
+               ifelse(str_detect(.$genre, "'hollywood'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(hippop=
+               ifelse(str_detect(.$genre, "'hip pop'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(cosmicamerican=
+               ifelse(str_detect(.$genre, "'cosmic american'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(irishrock=
+               ifelse(str_detect(.$genre, "'irish rock'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(boyband=
+               ifelse(str_detect(.$genre, "'boy band'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(instrumentalsoul=
+               ifelse(str_detect(.$genre, "'instrumental soul'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(soulblues=
+               ifelse(str_detect(.$genre, "'soul blues'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(glammetal=
+               ifelse(str_detect(.$genre, "'glam metal'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(northernsoul=
+               ifelse(str_detect(.$genre, "'northern soul'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(metal=
+               ifelse(str_detect(.$genre, "'metal'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(progressiverock=
+               ifelse(str_detect(.$genre, "'progressive rock'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(symphonicrock=
+               ifelse(str_detect(.$genre, "'symphonic rock'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(bebop=
+               ifelse(str_detect(.$genre, "'bebop'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(contemporarypostbop=
+               ifelse(str_detect(.$genre, "'contemporary post-bop'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(cooljazz=
+               ifelse(str_detect(.$genre, "'cool jazz'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(smoothjazz=
+               ifelse(str_detect(.$genre, "'smooth jazz'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(jazzfunk=
+               ifelse(str_detect(.$genre, "'jazz funk'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(souljazz=
+               ifelse(str_detect(.$genre, "'soul jazz'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(vocaljazz=
+               ifelse(str_detect(.$genre, "'vocal jazz'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(candypop=
+               ifelse(str_detect(.$genre, "'candy pop'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(europop=
+               ifelse(str_detect(.$genre, "'europop'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(countryrock=
+               ifelse(str_detect(.$genre, "'country rock'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(dancehall=
+               ifelse(str_detect(.$genre, "'dancehall'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(poprap=
+               ifelse(str_detect(.$genre, "'pop rap'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(glamrock=
+               ifelse(str_detect(.$genre, "'glam rock'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(oldschoolhiphop=
+               ifelse(str_detect(.$genre, "'old school hip hop'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(eastcoasthiphop=
+               ifelse(str_detect(.$genre, "'east coast hip hop'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(classicgaragerock=
+               ifelse(str_detect(.$genre, "'classic garage rock'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(freestyle=
+               ifelse(str_detect(.$genre, "'freestyle'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(chicagosoul=
+               ifelse(str_detect(.$genre, "'chicago soul'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(lilith=
+               ifelse(str_detect(.$genre, "'lilith'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(atlhiphop=
+               ifelse(str_detect(.$genre, "'atl hip hop'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(trap=
+               ifelse(str_detect(.$genre, "'trap'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(southernhiphop=
+               ifelse(str_detect(.$genre, "'southern hip hop'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(rock=
+               ifelse(str_detect(.$genre, "'rock'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(electropop=
+               ifelse(str_detect(.$genre, "'electropop'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(tropicalhouse=
+               ifelse(str_detect(.$genre, "'tropical house'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(torontorap=
+               ifelse(str_detect(.$genre, "'toronto rap'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(rap=
+               ifelse(str_detect(.$genre, "'rap'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(canadianhiphop=
+               ifelse(str_detect(.$genre, "'canadian hip hop'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(melodicrap=
+               ifelse(str_detect(.$genre, "'melodic rap'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(undergroundhiphop=
+               ifelse(str_detect(.$genre, "'underground hip hop'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(alternativerb=
+               ifelse(str_detect(.$genre, "'alternative r&b'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(deeppoprb=
+               ifelse(str_detect(.$genre, "'deep pop r&b'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(hiphop=
+               ifelse(str_detect(.$genre, "'hip hop'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(neomellow=
+               ifelse(str_detect(.$genre, "'neo mellow'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(poppunk=
+               ifelse(str_detect(.$genre, "'pop punk'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(poprock=
+               ifelse(str_detect(.$genre, "'pop rock'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(cowboywestern=
+               ifelse(str_detect(.$genre, "'cowboy western'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(oklahomacountry=
+               ifelse(str_detect(.$genre, "'oklahoma country'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(discohouse=
+               ifelse(str_detect(.$genre, "'disco house'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(divahouse=
+               ifelse(str_detect(.$genre, "'diva house'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(acousticpop=
+               ifelse(str_detect(.$genre, "'acoustic pop'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(pianorock=
+               ifelse(str_detect(.$genre, "'piano rock'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(hiphouse=
+               ifelse(str_detect(.$genre, "'hip house'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(vocalhouse=
+               ifelse(str_detect(.$genre, "'vocal house'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(gangsterrap=
+               ifelse(str_detect(.$genre, "'gangster rap'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(artpop=
+               ifelse(str_detect(.$genre, "'art pop'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(indiepop=
+               ifelse(str_detect(.$genre, "'indie pop'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(indierock=
+               ifelse(str_detect(.$genre, "'indie rock'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(stompandholler=
+               ifelse(str_detect(.$genre, "'stomp and holler'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(calirap=
+               ifelse(str_detect(.$genre, "'cali rap'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(moderncountryrock=
+               ifelse(str_detect(.$genre, "'modern country rock'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(talentshow=
+               ifelse(str_detect(.$genre, "'talent show'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(dancepunk=
+               ifelse(str_detect(.$genre, "'dance-punk'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(indietronica=
+               ifelse(str_detect(.$genre, "'indietronica'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(newrave=
+               ifelse(str_detect(.$genre, "'new rave'"),1,0),
+             .after="rating")
+#new
+songs <-songs%>%
+  add_column(comic=
+               ifelse(str_detect(.$genre, "'comic'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(bachata=
+               ifelse(str_detect(.$genre, "'bachata'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(latin=
+               ifelse(str_detect(.$genre, "'latin'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(latinpop=
+               ifelse(str_detect(.$genre, "'latin pop'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(reggaeton=
+               ifelse(str_detect(.$genre, "'reggaeton'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(tropical=
+               ifelse(str_detect(.$genre, "'tropical'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(crunk=
+               ifelse(str_detect(.$genre, "'crunk'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(metropopolis=
+               ifelse(str_detect(.$genre, "'metropopolis'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(edm=
+               ifelse(str_detect(.$genre, "'edm'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(alternativehiphop=
+               ifelse(str_detect(.$genre, "'alternative hip hop'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(hardcorehiphop=
+               ifelse(str_detect(.$genre, "'hardcore hip hop'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(turntablism=
+               ifelse(str_detect(.$genre, "'turntablism'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(electrohouse=
+               ifelse(str_detect(.$genre, "'electro house'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(germantechno=
+               ifelse(str_detect(.$genre, "'german techno'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(gleeclub=
+               ifelse(str_detect(.$genre, "'glee club'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(conscioushiphop=
+               ifelse(str_detect(.$genre, "'conscious hip hop'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(escaperoom=
+               ifelse(str_detect(.$genre, "'escape room'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(nchiphop=
+               ifelse(str_detect(.$genre, "'nc hip hop'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(classicgirlgroup=
+               ifelse(str_detect(.$genre, "'classic girl group'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(indiesoul=
+               ifelse(str_detect(.$genre, "'indie soul'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(memphishiphop=
+               ifelse(str_detect(.$genre, "'memphis hip hop'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(newjerseyrap=
+               ifelse(str_detect(.$genre, "'new jersey rap'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(britishsoul=
+               ifelse(str_detect(.$genre, "'british soul'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(detroithiphop=
+               ifelse(str_detect(.$genre, "'detroit hip hop'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(idol=
+               ifelse(str_detect(.$genre, "'idol'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(freakbeat=
+               ifelse(str_detect(.$genre, "'freakbeat'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(eurodance=
+               ifelse(str_detect(.$genre, "'eurodance'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(arkansascountry=
+               ifelse(str_detect(.$genre, "'arkansas country'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(deeptalentshow=
+               ifelse(str_detect(.$genre, "'deep talent show'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(house=
+               ifelse(str_detect(.$genre, "'house'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(ukdance=
+               ifelse(str_detect(.$genre, "'uk dance'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(americanfolkrevival=
+               ifelse(str_detect(.$genre, "'american folk revival'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(traditionalfolk=
+               ifelse(str_detect(.$genre, "'traditional folk'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(vocalharmonygroup=
+               ifelse(str_detect(.$genre, "'vocal harmony group'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(redneck=
+               ifelse(str_detect(.$genre, "'redneck'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(mexicanpop=
+               ifelse(str_detect(.$genre, "'mexican pop'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(swamppop=
+               ifelse(str_detect(.$genre, "'swamp pop'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(traditionalcountry=
+               ifelse(str_detect(.$genre, "'traditional country'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(yodeling=
+               ifelse(str_detect(.$genre, "'yodeling'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(countrygospel=
+               ifelse(str_detect(.$genre, "'country gospel'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(emo=
+               ifelse(str_detect(.$genre, "'emo'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(pubrock=
+               ifelse(str_detect(.$genre, "'pub rock'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(powerpop=
+               ifelse(str_detect(.$genre, "'power pop'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(novelty=
+               ifelse(str_detect(.$genre, "'novelty'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(swing=
+               ifelse(str_detect(.$genre, "'swing'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(torchsong=
+               ifelse(str_detect(.$genre, "'torch song'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(minneapolissound=
+               ifelse(str_detect(.$genre, "'minneapolis sound'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(janglepop=
+               ifelse(str_detect(.$genre, "'jangle pop'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(viralpop=
+               ifelse(str_detect(.$genre, "'viral pop'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(folkpop=
+               ifelse(str_detect(.$genre, "'folk-pop'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(beachmusic=
+               ifelse(str_detect(.$genre, "'beach music'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(britishblues=
+               ifelse(str_detect(.$genre, "'british blues'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(baroquepop=
+               ifelse(str_detect(.$genre, "'baroque pop'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(gfunk=
+               ifelse(str_detect(.$genre, "'g funk'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(batonrougerap=
+               ifelse(str_detect(.$genre, "'baton rouge rap'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(modernalternativerock=
+               ifelse(str_detect(.$genre, "'modern alternative rock'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(indiepoptimism=
+               ifelse(str_detect(.$genre, "'indie poptimism'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(indiecoustica=
+               ifelse(str_detect(.$genre, "'indiecoustica'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(reggaefusion=
+               ifelse(str_detect(.$genre, "'reggae fusion'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(colombianpop=
+               ifelse(str_detect(.$genre, "'colombian pop'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(honkytonk=
+               ifelse(str_detect(.$genre, "'honky tonk'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(bigroom=
+               ifelse(str_detect(.$genre, "'big room'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(brostep=
+               ifelse(str_detect(.$genre, "'brostep'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(floridarap=
+               ifelse(str_detect(.$genre, "'florida rap'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(canadiancontemporaryrb=
+               ifelse(str_detect(.$genre, "'canadian contemporary r&b'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(bronxhiphop=
+               ifelse(str_detect(.$genre, "'bronx hip hop'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(newamericana=
+               ifelse(str_detect(.$genre, "'new americana'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(seattleindie=
+               ifelse(str_detect(.$genre, "'seattle indie'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(sleazerock=
+               ifelse(str_detect(.$genre, "'sleaze rock'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(countrypop=
+               ifelse(str_detect(.$genre, "'country pop'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(numetal=
+               ifelse(str_detect(.$genre, "'nu metal'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(bowpop=
+               ifelse(str_detect(.$genre, "'bow pop'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(showtunes=
+               ifelse(str_detect(.$genre, "'show tunes'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(melancholia=
+               ifelse(str_detect(.$genre, "'melancholia'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(hinrg=
+               ifelse(str_detect(.$genre, "'hi-nrg'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(barbadianpop=
+               ifelse(str_detect(.$genre, "'barbadian pop'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(puertoricanpop=
+               ifelse(str_detect(.$genre, "'puerto rican pop'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(traplatino=
+               ifelse(str_detect(.$genre, "'trap latino'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(zolo=
+               ifelse(str_detect(.$genre, "'zolo'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(dancerock=
+               ifelse(str_detect(.$genre, "'dance rock'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(blues=
+               ifelse(str_detect(.$genre, "'blues'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(canadianmetal=
+               ifelse(str_detect(.$genre, "'canadian metal'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(canadianrock=
+               ifelse(str_detect(.$genre, "'canadian rock'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(jazz=
+               ifelse(str_detect(.$genre, "'jazz'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(alternativedance=
+               ifelse(str_detect(.$genre, "'alternative dance'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(phillyrap=
+               ifelse(str_detect(.$genre, "'philly rap'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(dirtysouthrap=
+               ifelse(str_detect(.$genre, "'dirty south rap'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(girlgroup=
+               ifelse(str_detect(.$genre, "'girl group'"),1,0),
+             .after="rating")
+songs <-songs%>%
+  add_column(chicagorap=
+               ifelse(str_detect(.$genre, "'chicago rap'"),1,0),
+             .after="rating")
+#songs
+```
+In this step, I split the genre to multiple variables. I used the add_column, ifelse, and str_detect functions to detect each genre in each row and if that genre existed, I will marked this raw as 1 in the new variable. This way can help me into create new Boolean variables about genre and help me increase the accuracy of model by having a cleaned data. 
+
+#scoring
+```{r}
+scoringData = read.csv('scoringData.csv')
+```
+This step is loading the scoring data for having predictiong. 
+
+```{r}
+scoringData[is.na(scoringData)] <- 0
+scoringData[scoringData == '[]'] <- 0
+#scoringData
+```
+
+```{r}
+scoringData <-scoringData%>%
+  add_column(adultstandards=
+               ifelse(str_detect(.$genre, "'adult standards'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(brillbuildingpop=
+               ifelse(str_detect(.$genre, "'brill building pop'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(easylistening=
+               ifelse(str_detect(.$genre, "'easy listening'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(mellowgold=
+               ifelse(str_detect(.$genre, "'mellow gold'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(rockandroll=
+               ifelse(str_detect(.$genre, "'rock-and-roll'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(spaceagepop=
+               ifelse(str_detect(.$genre, "'space age pop'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(surfmusic=
+               ifelse(str_detect(.$genre, "'surf music'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(dancepop=
+               ifelse(str_detect(.$genre, "'dance pop'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(pop=
+               ifelse(str_detect(.$genre, "'pop'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(postteenpop=
+               ifelse(str_detect(.$genre, "'post-teen pop'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(country=
+               ifelse(str_detect(.$genre, "'country'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(countrydawn=
+               ifelse(str_detect(.$genre, "'country dawn'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(nashvillesound=
+               ifelse(str_detect(.$genre, "'nashville sound'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(australiancountry=
+               ifelse(str_detect(.$genre, "'australian country'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(australianpop=
+               ifelse(str_detect(.$genre, "'australian pop'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(australianrock=
+               ifelse(str_detect(.$genre, "'australian rock'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(australiandance=
+               ifelse(str_detect(.$genre, "'australian dance'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(contemporarycountry=
+               ifelse(str_detect(.$genre, "'contemporary country'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(countryroad=
+               ifelse(str_detect(.$genre, "'country road'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(funk=
+               ifelse(str_detect(.$genre, "'funk'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(neosoul=
+               ifelse(str_detect(.$genre, "'neo soul'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(newjackswing=
+               ifelse(str_detect(.$genre, "'new jack swing'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(quietstorm=
+               ifelse(str_detect(.$genre, "'quiet storm'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(rb=
+               ifelse(str_detect(.$genre, "'r&b'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(urbancontemporary=
+               ifelse(str_detect(.$genre, "'urban contemporary'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(bluesrock=
+               ifelse(str_detect(.$genre, "'blues rock'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(garagerock=
+               ifelse(str_detect(.$genre, "'garage rock'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(modernblues=
+               ifelse(str_detect(.$genre, "'modern blues'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(punkblues=
+               ifelse(str_detect(.$genre, "'punk blues'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(folk=
+               ifelse(str_detect(.$genre, "'folk'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(folkrock=
+               ifelse(str_detect(.$genre, "'folk rock'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(singersongwriter=
+               ifelse(str_detect(.$genre, "'singer-songwriter'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(softrock=
+               ifelse(str_detect(.$genre, "'soft rock'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(yachtrock=
+               ifelse(str_detect(.$genre, "'yacht rock'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(bubblegumpop=
+               ifelse(str_detect(.$genre, "'bubblegum pop'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(lounge=
+               ifelse(str_detect(.$genre, "'lounge'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(rockabilly=
+               ifelse(str_detect(.$genre, "'rockabilly'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(sunshinepop=
+               ifelse(str_detect(.$genre, "'sunshine pop'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(canadianpop=
+               ifelse(str_detect(.$genre, "'canadian pop'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(newromantic=
+               ifelse(str_detect(.$genre, "'new romantic'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(newwave=
+               ifelse(str_detect(.$genre, "'new wave'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(newwavepop=
+               ifelse(str_detect(.$genre, "'new wave pop'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(synthpop=
+               ifelse(str_detect(.$genre, "'synthpop'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(classicsoul=
+               ifelse(str_detect(.$genre, "'classic soul'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(classiccountrypop=
+               ifelse(str_detect(.$genre, "'classic country pop'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(outlawcountry=
+               ifelse(str_detect(.$genre, "'outlaw country'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(texascountry=
+               ifelse(str_detect(.$genre, "'texas country'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(disco=
+               ifelse(str_detect(.$genre, "'disco'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(postdisco=
+               ifelse(str_detect(.$genre, "'post-disco'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(motown=
+               ifelse(str_detect(.$genre, "'motown'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(southernsoul=
+               ifelse(str_detect(.$genre, "'southern soul'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(doowop=
+               ifelse(str_detect(.$genre, "'doo-wop'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(rhythmandblues=
+               ifelse(str_detect(.$genre, "'rhythm and blues'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(albumrock=
+               ifelse(str_detect(.$genre, "'album rock'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(artrock=
+               ifelse(str_detect(.$genre, "'art rock'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(electricblues=
+               ifelse(str_detect(.$genre, "'electric blues'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(classicrock=
+               ifelse(str_detect(.$genre, "'classic rock'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(jazzblues=
+               ifelse(str_detect(.$genre, "'jazz blues'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(louisianablues=
+               ifelse(str_detect(.$genre, "'louisiana blues'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(neworleansblues=
+               ifelse(str_detect(.$genre, "'new orleans blues'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(pianoblues=
+               ifelse(str_detect(.$genre, "'piano blues'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(psychedelicrock=
+               ifelse(str_detect(.$genre, "'psychedelic rock'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(rootsrock=
+               ifelse(str_detect(.$genre, "'roots rock'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(canadiansingersongwriter=
+               ifelse(str_detect(.$genre, "'canadian singer-songwriter'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(classiccanadianrock=
+               ifelse(str_detect(.$genre, "'classic canadian rock'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(heartlandrock=
+               ifelse(str_detect(.$genre, "'heartland rock'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(permanentwave=
+               ifelse(str_detect(.$genre, "'permanent wave'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(hardrock=
+               ifelse(str_detect(.$genre, "'hard rock'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(southernrock=
+               ifelse(str_detect(.$genre, "'southern rock'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(christmasinstrumental=
+               ifelse(str_detect(.$genre, "'christmas instrumental'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(phillysoul=
+               ifelse(str_detect(.$genre, "'philly soul'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(britishinvasion=
+               ifelse(str_detect(.$genre, "'british invasion'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(protopunk=
+               ifelse(str_detect(.$genre, "'protopunk'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(alternativemetal=
+               ifelse(str_detect(.$genre, "'alternative metal'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(classicukpop=
+               ifelse(str_detect(.$genre, "'classic uk pop'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(merseybeat=
+               ifelse(str_detect(.$genre, "'merseybeat'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(memphissoul=
+               ifelse(str_detect(.$genre, "'memphis soul'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(deepadultstandards=
+               ifelse(str_detect(.$genre, "'deep adult standards'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(modernrock=
+               ifelse(str_detect(.$genre, "'modern rock'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(alternativerock=
+               ifelse(str_detect(.$genre, "'alternative rock'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(postgrunge=
+               ifelse(str_detect(.$genre, "'post-grunge'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(grunge=
+               ifelse(str_detect(.$genre, "'grunge'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(hollywood=
+               ifelse(str_detect(.$genre, "'hollywood'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(hippop=
+               ifelse(str_detect(.$genre, "'hip pop'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(cosmicamerican=
+               ifelse(str_detect(.$genre, "'cosmic american'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(irishrock=
+               ifelse(str_detect(.$genre, "'irish rock'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(boyband=
+               ifelse(str_detect(.$genre, "'boy band'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(instrumentalsoul=
+               ifelse(str_detect(.$genre, "'instrumental soul'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(soulblues=
+               ifelse(str_detect(.$genre, "'soul blues'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(glammetal=
+               ifelse(str_detect(.$genre, "'glam metal'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(northernsoul=
+               ifelse(str_detect(.$genre, "'northern soul'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(metal=
+               ifelse(str_detect(.$genre, "'metal'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(progressiverock=
+               ifelse(str_detect(.$genre, "'progressive rock'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(symphonicrock=
+               ifelse(str_detect(.$genre, "'symphonic rock'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(bebop=
+               ifelse(str_detect(.$genre, "'bebop'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(contemporarypostbop=
+               ifelse(str_detect(.$genre, "'contemporary post-bop'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(cooljazz=
+               ifelse(str_detect(.$genre, "'cool jazz'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(smoothjazz=
+               ifelse(str_detect(.$genre, "'smooth jazz'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(jazzfunk=
+               ifelse(str_detect(.$genre, "'jazz funk'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(souljazz=
+               ifelse(str_detect(.$genre, "'soul jazz'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(vocaljazz=
+               ifelse(str_detect(.$genre, "'vocal jazz'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(candypop=
+               ifelse(str_detect(.$genre, "'candy pop'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(europop=
+               ifelse(str_detect(.$genre, "'europop'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(countryrock=
+               ifelse(str_detect(.$genre, "'country rock'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(dancehall=
+               ifelse(str_detect(.$genre, "'dancehall'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(poprap=
+               ifelse(str_detect(.$genre, "'pop rap'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(glamrock=
+               ifelse(str_detect(.$genre, "'glam rock'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(oldschoolhiphop=
+               ifelse(str_detect(.$genre, "'old school hip hop'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(eastcoasthiphop=
+               ifelse(str_detect(.$genre, "'east coast hip hop'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(classicgaragerock=
+               ifelse(str_detect(.$genre, "'classic garage rock'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(freestyle=
+               ifelse(str_detect(.$genre, "'freestyle'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(chicagosoul=
+               ifelse(str_detect(.$genre, "'chicago soul'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(lilith=
+               ifelse(str_detect(.$genre, "'lilith'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(atlhiphop=
+               ifelse(str_detect(.$genre, "'atl hip hop'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(trap=
+               ifelse(str_detect(.$genre, "'trap'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(southernhiphop=
+               ifelse(str_detect(.$genre, "'southern hip hop'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(rock=
+               ifelse(str_detect(.$genre, "'rock'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(electropop=
+               ifelse(str_detect(.$genre, "'electropop'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(tropicalhouse=
+               ifelse(str_detect(.$genre, "'tropical house'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(torontorap=
+               ifelse(str_detect(.$genre, "'toronto rap'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(rap=
+               ifelse(str_detect(.$genre, "'rap'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(canadianhiphop=
+               ifelse(str_detect(.$genre, "'canadian hip hop'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(melodicrap=
+               ifelse(str_detect(.$genre, "'melodic rap'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(undergroundhiphop=
+               ifelse(str_detect(.$genre, "'underground hip hop'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(alternativerb=
+               ifelse(str_detect(.$genre, "'alternative r&b'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(deeppoprb=
+               ifelse(str_detect(.$genre, "'deep pop r&b'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(hiphop=
+               ifelse(str_detect(.$genre, "'hip hop'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(neomellow=
+               ifelse(str_detect(.$genre, "'neo mellow'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(poppunk=
+               ifelse(str_detect(.$genre, "'pop punk'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(poprock=
+               ifelse(str_detect(.$genre, "'pop rock'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(cowboywestern=
+               ifelse(str_detect(.$genre, "'cowboy western'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(oklahomacountry=
+               ifelse(str_detect(.$genre, "'oklahoma country'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(discohouse=
+               ifelse(str_detect(.$genre, "'disco house'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(divahouse=
+               ifelse(str_detect(.$genre, "'diva house'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(acousticpop=
+               ifelse(str_detect(.$genre, "'acoustic pop'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(pianorock=
+               ifelse(str_detect(.$genre, "'piano rock'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(hiphouse=
+               ifelse(str_detect(.$genre, "'hip house'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(vocalhouse=
+               ifelse(str_detect(.$genre, "'vocal house'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(gangsterrap=
+               ifelse(str_detect(.$genre, "'gangster rap'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(artpop=
+               ifelse(str_detect(.$genre, "'art pop'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(indiepop=
+               ifelse(str_detect(.$genre, "'indie pop'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(indierock=
+               ifelse(str_detect(.$genre, "'indie rock'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(stompandholler=
+               ifelse(str_detect(.$genre, "'stomp and holler'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(calirap=
+               ifelse(str_detect(.$genre, "'cali rap'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(moderncountryrock=
+               ifelse(str_detect(.$genre, "'modern country rock'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(talentshow=
+               ifelse(str_detect(.$genre, "'talent show'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(dancepunk=
+               ifelse(str_detect(.$genre, "'dance-punk'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(indietronica=
+               ifelse(str_detect(.$genre, "'indietronica'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(newrave=
+               ifelse(str_detect(.$genre, "'new rave'"),1,0),
+             .after="time_signature")
+#new
+scoringData <-scoringData%>%
+  add_column(comic=
+               ifelse(str_detect(.$genre, "'comic'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(bachata=
+               ifelse(str_detect(.$genre, "'bachata'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(latin=
+               ifelse(str_detect(.$genre, "'latin'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(latinpop=
+               ifelse(str_detect(.$genre, "'latin pop'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(reggaeton=
+               ifelse(str_detect(.$genre, "'reggaeton'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(tropical=
+               ifelse(str_detect(.$genre, "'tropical'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(crunk=
+               ifelse(str_detect(.$genre, "'crunk'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(metropopolis=
+               ifelse(str_detect(.$genre, "'metropopolis'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(edm=
+               ifelse(str_detect(.$genre, "'edm'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(alternativehiphop=
+               ifelse(str_detect(.$genre, "'alternative hip hop'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(hardcorehiphop=
+               ifelse(str_detect(.$genre, "'hardcore hip hop'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(turntablism=
+               ifelse(str_detect(.$genre, "'turntablism'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(electrohouse=
+               ifelse(str_detect(.$genre, "'electro house'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(germantechno=
+               ifelse(str_detect(.$genre, "'german techno'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(gleeclub=
+               ifelse(str_detect(.$genre, "'glee club'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(conscioushiphop=
+               ifelse(str_detect(.$genre, "'conscious hip hop'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(escaperoom=
+               ifelse(str_detect(.$genre, "'escape room'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(nchiphop=
+               ifelse(str_detect(.$genre, "'nc hip hop'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(classicgirlgroup=
+               ifelse(str_detect(.$genre, "'classic girl group'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(indiesoul=
+               ifelse(str_detect(.$genre, "'indie soul'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(memphishiphop=
+               ifelse(str_detect(.$genre, "'memphis hip hop'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(newjerseyrap=
+               ifelse(str_detect(.$genre, "'new jersey rap'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(britishsoul=
+               ifelse(str_detect(.$genre, "'british soul'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(detroithiphop=
+               ifelse(str_detect(.$genre, "'detroit hip hop'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(idol=
+               ifelse(str_detect(.$genre, "'idol'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(freakbeat=
+               ifelse(str_detect(.$genre, "'freakbeat'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(eurodance=
+               ifelse(str_detect(.$genre, "'eurodance'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(arkansascountry=
+               ifelse(str_detect(.$genre, "'arkansas country'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(deeptalentshow=
+               ifelse(str_detect(.$genre, "'deep talent show'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(house=
+               ifelse(str_detect(.$genre, "'house'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(ukdance=
+               ifelse(str_detect(.$genre, "'uk dance'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(americanfolkrevival=
+               ifelse(str_detect(.$genre, "'american folk revival'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(traditionalfolk=
+               ifelse(str_detect(.$genre, "'traditional folk'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(vocalharmonygroup=
+               ifelse(str_detect(.$genre, "'vocal harmony group'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(redneck=
+               ifelse(str_detect(.$genre, "'redneck'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(mexicanpop=
+               ifelse(str_detect(.$genre, "'mexican pop'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(swamppop=
+               ifelse(str_detect(.$genre, "'swamp pop'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(traditionalcountry=
+               ifelse(str_detect(.$genre, "'traditional country'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(yodeling=
+               ifelse(str_detect(.$genre, "'yodeling'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(countrygospel=
+               ifelse(str_detect(.$genre, "'country gospel'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(emo=
+               ifelse(str_detect(.$genre, "'emo'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(pubrock=
+               ifelse(str_detect(.$genre, "'pub rock'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(powerpop=
+               ifelse(str_detect(.$genre, "'power pop'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(novelty=
+               ifelse(str_detect(.$genre, "'novelty'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(swing=
+               ifelse(str_detect(.$genre, "'swing'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(torchsong=
+               ifelse(str_detect(.$genre, "'torch song'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(minneapolissound=
+               ifelse(str_detect(.$genre, "'minneapolis sound'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(janglepop=
+               ifelse(str_detect(.$genre, "'jangle pop'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(viralpop=
+               ifelse(str_detect(.$genre, "'viral pop'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(folkpop=
+               ifelse(str_detect(.$genre, "'folk-pop'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(beachmusic=
+               ifelse(str_detect(.$genre, "'beach music'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(britishblues=
+               ifelse(str_detect(.$genre, "'british blues'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(baroquepop=
+               ifelse(str_detect(.$genre, "'baroque pop'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(gfunk=
+               ifelse(str_detect(.$genre, "'g funk'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(batonrougerap=
+               ifelse(str_detect(.$genre, "'baton rouge rap'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(modernalternativerock=
+               ifelse(str_detect(.$genre, "'modern alternative rock'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(indiepoptimism=
+               ifelse(str_detect(.$genre, "'indie poptimism'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(indiecoustica=
+               ifelse(str_detect(.$genre, "'indiecoustica'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(reggaefusion=
+               ifelse(str_detect(.$genre, "'reggae fusion'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(colombianpop=
+               ifelse(str_detect(.$genre, "'colombian pop'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(honkytonk=
+               ifelse(str_detect(.$genre, "'honky tonk'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(bigroom=
+               ifelse(str_detect(.$genre, "'big room'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(brostep=
+               ifelse(str_detect(.$genre, "'brostep'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(floridarap=
+               ifelse(str_detect(.$genre, "'florida rap'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(canadiancontemporaryrb=
+               ifelse(str_detect(.$genre, "'canadian contemporary r&b'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(bronxhiphop=
+               ifelse(str_detect(.$genre, "'bronx hip hop'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(newamericana=
+               ifelse(str_detect(.$genre, "'new americana'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(seattleindie=
+               ifelse(str_detect(.$genre, "'seattle indie'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(sleazerock=
+               ifelse(str_detect(.$genre, "'sleaze rock'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(countrypop=
+               ifelse(str_detect(.$genre, "'country pop'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(numetal=
+               ifelse(str_detect(.$genre, "'nu metal'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(bowpop=
+               ifelse(str_detect(.$genre, "'bow pop'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(showtunes=
+               ifelse(str_detect(.$genre, "'show tunes'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(melancholia=
+               ifelse(str_detect(.$genre, "'melancholia'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(hinrg=
+               ifelse(str_detect(.$genre, "'hi-nrg'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(barbadianpop=
+               ifelse(str_detect(.$genre, "'barbadian pop'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(puertoricanpop=
+               ifelse(str_detect(.$genre, "'puerto rican pop'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(traplatino=
+               ifelse(str_detect(.$genre, "'trap latino'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(zolo=
+               ifelse(str_detect(.$genre, "'zolo'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(dancerock=
+               ifelse(str_detect(.$genre, "'dance rock'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(blues=
+               ifelse(str_detect(.$genre, "'blues'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(canadianmetal=
+               ifelse(str_detect(.$genre, "'canadian metal'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(canadianrock=
+               ifelse(str_detect(.$genre, "'canadian rock'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(jazz=
+               ifelse(str_detect(.$genre, "'jazz'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(alternativedance=
+               ifelse(str_detect(.$genre, "'alternative dance'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(phillyrap=
+               ifelse(str_detect(.$genre, "'philly rap'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(dirtysouthrap=
+               ifelse(str_detect(.$genre, "'dirty south rap'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(girlgroup=
+               ifelse(str_detect(.$genre, "'girl group'"),1,0),
+             .after="time_signature")
+scoringData <-scoringData%>%
+  add_column(chicagorap=
+               ifelse(str_detect(.$genre, "'chicago rap'"),1,0),
+             .after="time_signature")
+
+#scoringData
+```
+In this step, I need to do the same thing to scoring data to keep it has the same variables as analysis data. What I did is copying the codes from the step of cleaning analysis data and changing the names. 
+
+#accuracy
+```{r}
+set.seed(1000)
+split_pac = createDataPartition(y=songs$rating, p = 0.8, list = F, groups = 200)
+train_pac <- songs[split_pac,]
+test_pac <- songs[-split_pac,]
+```
+This step is creating a train and a test for the model I will built in the next step. This can help me to test a more accurate result.
+
+```{r}
+set.seed(1000)
+
+model_ranger = ranger(rating ~ tempo+time_signature+valence+liveness+instrumentalness+acousticness+speechiness+loudness+key+energy+danceability+track_duration+track_explicit+mode+newrave+indietronica+dancepunk+talentshow+moderncountryrock+calirap+stompandholler+indierock+indiepop+artpop+gangsterrap+vocalhouse+hiphouse+pianorock+acousticpop+divahouse+discohouse+oklahomacountry+cowboywestern+poprock+poppunk+neomellow+hiphop+deeppoprb+alternativerb+undergroundhiphop+melodicrap+canadianhiphop+rap+torontorap+tropicalhouse+electropop+rock+southernhiphop+trap+atlhiphop+lilith+chicagosoul+freestyle+classicgaragerock+eastcoasthiphop+oldschoolhiphop+glamrock+poprap+dancehall+countryrock+europop+candypop+vocaljazz+souljazz+jazzfunk+cooljazz+smoothjazz+contemporarypostbop+bebop+symphonicrock+progressiverock+metal+northernsoul+glammetal+soulblues+instrumentalsoul+boyband+irishrock+cosmicamerican+hippop+hollywood+postgrunge+grunge+alternativerock+modernrock+deepadultstandards+memphissoul+merseybeat+classicukpop+alternativemetal+protopunk+britishinvasion+phillysoul+christmasinstrumental+southernrock+hardrock+permanentwave+heartlandrock+classiccanadianrock+canadiansingersongwriter+rootsrock+psychedelicrock+pianoblues+neworleansblues+louisianablues+jazzblues+classicrock+electricblues+artrock+albumrock+rhythmandblues+doowop+southernsoul+motown+postdisco+disco+texascountry+outlawcountry+classiccountrypop+classicsoul+synthpop+newwavepop+newwave+newromantic+canadianpop+sunshinepop+rockabilly+lounge+bubblegumpop+yachtrock+softrock+singersongwriter+folkrock+folk+punkblues+modernblues+garagerock+bluesrock+urbancontemporary+rb+quietstorm+newjackswing+neosoul+funk+countryroad+contemporarycountry+australiancountry+australianpop+australianrock+australiandance+nashvillesound+countrydawn+country+postteenpop+pop+dancepop+surfmusic+spaceagepop+rockandroll+mellowgold+easylistening+brillbuildingpop+adultstandards+zolo+traplatino+puertoricanpop+barbadianpop+hinrg+melancholia+showtunes+bowpop+numetal+countrypop+sleazerock+seattleindie+newamericana+bronxhiphop+canadiancontemporaryrb+floridarap+brostep+bigroom+honkytonk+colombianpop+reggaefusion+indiecoustica+indiepoptimism+modernalternativerock+batonrougerap+gfunk+baroquepop+britishblues+beachmusic+folkpop+viralpop+janglepop+minneapolissound+torchsong+swing+novelty+powerpop+pubrock+emo+countrygospel+yodeling+traditionalcountry+swamppop+mexicanpop+redneck+vocalharmonygroup+traditionalfolk+americanfolkrevival+ukdance+house+deeptalentshow+arkansascountry+eurodance+freakbeat+idol+detroithiphop+britishsoul+newjerseyrap+memphishiphop+indiesoul+classicgirlgroup+nchiphop+escaperoom+conscioushiphop+gleeclub+germantechno+electrohouse+turntablism+hardcorehiphop+alternativehiphop+edm+metropopolis+crunk+tropical+reggaeton+latin+latinpop+bachata+comic+dancerock+blues+canadianmetal+canadianrock+jazz+alternativedance+phillyrap+dirtysouthrap+girlgroup+chicagorap, 
+                        data=train_pac, num.trees = 1000)
+
+pred_ranger = predict(model_ranger, data = test_pac, num.trees = 1000)
+rmse_ranger = sqrt(mean((pred_ranger$predictions - test_pac$rating)^2))
+rmse_ranger
+
+sqrt(mean(((predict(model_ranger, data = train_pac, num.trees = 1000))$predictions - train_pac$rating)^2))
+
+```
+I choose to use ranger as the predicted model. I also tried random forest model, but ranger has a better result. 
+
+#result
+```{r}
+pred = predict(model_ranger,data=scoringData, num.trees = 1000)
+
+submissionFile = data.frame(id = scoringData$id, rating = pred$prediction)
+write.csv(submissionFile, 'sample_submission.csv',row.names = F)
+```
+
+#missteps
+In the step of split genre to new variables, I used python to create a for loop to run all the analysis data. I found the frequency of different genre. However, I was not sure how many variables is the best for ranger model, so I only took top 300 frequent variables to split and anlalyze. This is a pert that I think might lead to some mistakes to the result. 
